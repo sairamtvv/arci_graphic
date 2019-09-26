@@ -1,0 +1,26 @@
+﻿Sl.No.,Parameters,Test Result Specified,Test Result Measured,Remarks
+1,Mechanical Dimensions,*,*,*
+1.1,Width x Height,Width:36±1 mm,36,*
+*,*,Height:26±1 mm,27,*
+1.2,Weight(grams),<80,76,*
+2,Bias compensation,*,*,*
+2.1,Volatage difference between U1 & U2,<=3.5,-7µVolts,R_Bias=15Kohms
+3,Polarity,*,*,*
+3.1,+1g,-0.34V to -0.46V,-0.369366V,*
+3.2,-1g,+0.34 to +0.46,0.369373V,*
+4,Performance Parameters,*,*,*
+4.1,SF(at+42.5°C),2.0 mA/g±15%,1.89,*
+4.2,SF Temp.Coefficient,200 ppm/°C(max),9.61,*
+4.3,SF Hysteresis,100 ppm(max),3.44,*
+4.4,SF Day to Day stability,100 ppm(max),3.44,*
+4.5,SF stability(In run),30 ppm(max),1.58,*
+4.6,Bias,4000 µg(max),244.48,*
+4.7,Bias Temp.Coefficient,30 µg/°C(max),10.62,*
+4.8,Bias Hysteresis,225 µg,60.97,*
+4.9,Bias Day to Day Stability,100µg(max),14.25,*
+4.10,Bias Stability(In run),30 µg(max),2.63,*
+4.11,Misalignment,±600,142.76,*
+4.12,Axis Misalignment Stability (Day to Day),15'',6.14,*
+4.13,Bandwidth,>250 Hz,*,*
+*,*,Gain(Hz)-3dB,1020(Hz),*
+*,*,Phase(deg)90°,623.4(Hz),*
