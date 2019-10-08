@@ -8,14 +8,17 @@ Created on Sat Aug 17 15:10:59 2019
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-
+import pathlib
+import docx
+from docx.shared import Cm, Inches,Length
 
 b = np.array( [[-372.675,372.434],[-372.671,372.437],[-372.669,372.435],
-      [-372.665,372.435],[-372.666,372.436],[-372.665,372.439]])
+  [-372.665,372.435],[-372.666,372.436],[-372.665,372.439]])
 
-print(b.shape)
-def matlab_conver_func(a=b):
+#print(b.shape)
 
+def matlab_conver_func (a,dir_for_analy,sensor_name):
+    
     #SF inrun stability
     
     g=9.78335;
@@ -72,21 +75,22 @@ def matlab_conver_func(a=b):
     #SFTC
     
     #a1=load('RESULT1.dat');
-    panda_a1 = pd.read_csv('RESULT1.DAT',header=None,delimiter= '\s+',skiprows=1)
+    
+    panda_a1 = pd.read_csv(dir_for_analy.joinpath('RESULT1.DAT'),header=None,delimiter= '\s+',skiprows=1)
     array_a1 = np.asarray(panda_a1)
     print(np.size(array_a1))
     a1=array_a1.reshape(9,5)
     
     
     #a2=load('RESULT2.dat');
-    panda_a2 = pd.read_csv('RESULT2.DAT',header=None,delimiter= '\s+',skiprows=1)
+    panda_a2 = pd.read_csv(dir_for_analy.joinpath('RESULT2.DAT'),header=None,delimiter= '\s+',skiprows=1)
     array_a2 = np.asarray(panda_a2)
     a2=array_a2.reshape(9,5)
     
     
     
     #a3=load('RESULT3.dat');
-    panda_a3 = pd.read_csv('RESULT3.DAT',header=None,delimiter= '\s+',skiprows=1)
+    panda_a3 = pd.read_csv(dir_for_analy.joinpath('RESULT3.DAT'),header=None,delimiter= '\s+',skiprows=1)
     array_a3 = np.asarray(panda_a3)
     a3=array_a3.reshape(9,5)
     
@@ -160,7 +164,7 @@ def matlab_conver_func(a=b):
     #%BTCF
     
     
-    #%%loop 1
+    #loop 1
     #%BIAS (at +42.5°)
     #format long
     B1=abs(a1[2-1][3-1]);
@@ -176,7 +180,7 @@ def matlab_conver_func(a=b):
     BTCF1=(mBTC-BTC3)/110*10**6;
     
     
-    #%%loop2
+    #loop2
     B1=abs(a2[2-1][3-1]);
     B2=abs(a2[8-1][3-1]);
     #format short
@@ -190,7 +194,7 @@ def matlab_conver_func(a=b):
     BTCF2=(mBTC-BTC3)/110*10**6;
     
     
-    #%%loop3
+    #loop3
     B1=abs(a3[2-1][3-1]);
     B2=abs(a3[8-1][3-1]);
     #format short
@@ -228,7 +232,7 @@ def matlab_conver_func(a=b):
     Hyst46=np.diff([b7, b8])/b78;
     c=np.abs([Hyst19, Hyst28, Hyst37, Hyst46]);
     SF_HYSTERESIS1=np.max(c)*10**6;
-    #%%loop2
+    #loop2
     b1=a2[1-1][2-1];
     b2=a2[9-1][2-1];
     b12=np.mean([b1, b2]);
@@ -247,7 +251,7 @@ def matlab_conver_func(a=b):
     Hyst46=np.diff([b7, b8])/b78;
     c=np.abs([Hyst19, Hyst28, Hyst37, Hyst46]);
     SF_HYSTERESIS2=np.max(c)*10**6;
-    #%%loop3
+    #loop3
     b1=a3[1-1][2-1];
     b2=a3[9-1][2-1];
     b12=np.mean([b1, b2]);
@@ -271,7 +275,7 @@ def matlab_conver_func(a=b):
     avg_SF_HYSTERESIS_value=np.mean([SF_HYSTERESIS1, SF_HYSTERESIS2,   SF_HYSTERESIS3]);
     
     
-    #%%BIAS HYSTERESIS ERROR
+    #BIAS HYSTERESIS ERROR
     b1=a1[1-1][3-1];
     b2=a1[9-1][3-1];
     BIAS_Hyst19=np.diff([b1, b2]);
@@ -438,6 +442,224 @@ def matlab_conver_func(a=b):
     print('     ');
     print('MD2D:       ---------         {0:6.2f}           {1:6.2f}          {2:6.2f}'.format(md2d[0],md2d[1],np.max(md2d)))
     
+    
+    
+    
+    
+    #df = pd.DataFrame(data)
+    df = pd.read_csv(dir_for_analy.joinpath("sample1.csv"))
+    
+    #Assigning the values into the dataframe 
+    df.iloc[10,3]=np.mean(xsf) #sf mean
+    df.iloc[11,3]=np.mean(Ysf) #sftc mean
+    df.iloc[12,3]= avg_SF_HYSTERESIS_value #sf_hysterisis
+    df.iloc[13,3]= xsfdd[2] #SFDD
+    df.iloc[14,3]= SF_INRUN_STABILITY #SF_INRUN_S
+    df.iloc[15,3]= np.mean(xb)#bias
+    df.iloc[16,3]= np.mean(yb)#BTCF bias temperature coefficient
+    df.iloc[17,3]= avg_BIAS_HYSTERESIS_value #BIAS_HYS
+    df.iloc[18,3]= ybdd[2] #BiasDD Bias Day to Day Stability 	
+    df.iloc[19,3]= BIAS_INRUN_STABILITY        #B_INRUN_S
+    df.iloc[20,3]= M_max #MIS  Misalignment 	
+    df.iloc[21,3]= np.max(md2d)    #MD2D Axis Misalignment Stability (Day to Day)
+    
+    
+    
+    
+    
+    # open an existing document
+    doc = docx.Document()
+    section = doc.sections[0]
+    header = section.header
+    footer = section.footer
+    header_p = header.paragraphs[0]
+    footer_p=footer.paragraphs[0]
+    header_p.text = "EQA3/AT/QC/QCR/03"
+    header_p.alignment =  2
+    header_p.bold= True
+    
+    footer_p.text="EQA3/AT/QC/QCR/03Revision: 00      Date:"
+    footer_p.alignment =  1
+    footer_p.bold= True
+    
+    
+    doc.add_heading('QUALITY CONFORMANCE REPORT - ACCEPTANCE TESTS ', 1)
+    
+    
+    #project_p = doc.add_paragraph("Date:")
+    #project_p.alignment = 1 # for left, 1 for right, 2 center, 3 justify ....
+    #project_p.bold = True
+    
+    
+    
+    date_p= doc.add_paragraph("PROJECT: EQA-3                \t\t\t        Date: ")
+    date_p.alignment = 1 # for left, 1 for right, 2 center, 3 justify ....
+    date_p.bold = True
+    
+    
+    # add a table to the end and create a reference variable
+    # extra row is so we can add the header row
+    table = doc.add_table(df.shape[0]+1, df.shape[1])
+    
+    
+    table.style = 'TableGrid' #single lines in all cells
+    table.autofit = False
+    
+    col = table.columns[0] 
+    col.width=Inches(0.75)
+    cell=table.cell(1,1)
+    cell.width = Inches(2)
+    #col.width=Cm(1.0)
+    #col.width=360000 #=1cm
+    #for cell in table.cells:
+    #    cell.width = Inches(1)
+    
+    
+    
+    
+    print(table)
+    print('------------------------------------------')
+    
+    # add the header rows.
+    for j in range(df.shape[-1]):
+        if df.columns[j] == '*':
+            pass
+        else:
+            table.cell(0,j).text = df.columns[j]
+    
+    # add the rest of the data frame
+    for i in range(df.shape[0]):
+        for j in range(df.shape[-1]):
+            if df.values[i,j] == '*':
+                pass
+            else:
+                table.cell(i+1,j).text = str(df.values[i,j])
+    
+            #table.cell(i+1,j).text = str(df.values[i,j])
+            
+    note_p= doc.add_paragraph("Note:**The test results are calculated from the data of ATLs’-14, 16, 17 and 20. ")
+    note_p.alignment = 1 # for left, 1 for right, 2 center, 3 justify ....
+    note_p.bold = True        
+    
+    
+    doc.add_page_break()
+    
+    
+    
+    df = pd.read_csv(dir_for_analy.joinpath("sample2.csv"))
+    table = doc.add_table(df.shape[0]+1, df.shape[1])
+    
+    
+    table.style = 'TableGrid' #single lines in all cells
+    table.autofit = False
+    
+    col = table.columns[0] 
+    col.width=Inches(0.75)
+    cell=table.cell(1,1)
+    cell.width = Inches(2)
+    
+    print(table)
+    print('------------------------------------------')
+    
+    # add the header rows.
+    for j in range(df.shape[-1]):
+        if df.columns[j] == '*':
+            pass
+        else:
+            table.cell(0,j).text = df.columns[j]
+    
+    # add the rest of the data frame
+    for i in range(df.shape[0]):
+        for j in range(df.shape[-1]):
+            if df.values[i,j] == '*':
+                pass
+            else:
+                table.cell(i+1,j).text = str(df.values[i,j])
+    
+    # save the doc
+    doc.save(dir_for_analy.joinpath(sensor_name+'.docx'))
+    
+    #Plotting the graphs
+    
+    pdresult1 = pd.read_csv(dir_for_analy.joinpath('RESULT1.DAT'),delimiter= '\s+')
+    pdresult2 = pd.read_csv(dir_for_analy.joinpath('RESULT2.DAT'),delimiter= '\s+')
+    pdresult3 = pd.read_csv(dir_for_analy.joinpath('RESULT3.DAT'),delimiter= '\s+')
+    
+    #plt.rc('text', usetex=True)
+    
+    x = list(pdresult1['Ts'])
+    y_list1 = list(pdresult1['Misalign34'])
+    y_list2 = list(pdresult2['Misalign34'])
+    y_list3 = list(pdresult3['Misalign34'])
+    
+    # Create Figure (empty canvas)
+    fig = plt.figure()
+    
+    # Add set of axes to figure
+    axes = fig.add_axes([0.1, 0.1, 1, 1]) # left, bottom, width, height (range 0 to 1)
+    
+    # Plot on that set of axes
+    axes.grid(True)
+    axes.plot(x, y_list1,color='red',linewidth=1,alpha=1,linestyle='-',marker='o',markersize=2,
+              markerfacecolor='red', markeredgewidth=3, markeredgecolor='red',label="x**2")
+    
+    
+    axes.plot(x, y_list2,color='green',linewidth=1,alpha=1,linestyle='-',marker='s',markersize=2,
+              markerfacecolor='green', markeredgewidth=3, markeredgecolor='green',label="x**3")
+    axes.plot(x, y_list3,color='blue',linewidth=1,alpha=1,linestyle='-',marker='s',markersize=2,
+              markerfacecolor='blue', markeredgewidth=3, markeredgecolor='blue',label="x**4")
+    
+    #axes.plot(x,z)
+    axes.set_xlabel('Temp $^\circ$ C') # Notice the use of set_ to begin methods  
+    axes.set_ylabel('Scale, $mA(m/s^2)$')
+    #axes.set_title('Set Title')
+    axes.legend(loc=0)
+    # legend
+    #plt.legend(('phase field', 'level set', 'sharp interface'),
+    #           shadow=True, loc=(0.01, 0.48), handlelength=1.5, fontsize=16)
+    
+    
+    #fig.savefig("filename.png", dpi=200)
+    
+    locs, labels = plt.yticks() 
+    for index,tuplexy in enumerate(zip(x, y_list1)):
+        i_x=tuplexy[0]
+        i_y=tuplexy[1]
+        #print("{},{},{}".format(index,i_x, i_y))
+        label='{1:.7f}[{0}]'.format(index+1, i_y)
+        #plt.text(i_x, i_y,string )
+        plt.annotate(label, # this is the text
+                     (i_x,i_y), # this is the point to label
+                     textcoords="offset points", # how to position the text
+                     xytext=(0,-2*index+20), # distance from text to points (x,y)
+                     ha='center',color='red') # horizontal alignment can be left, right or center
+        
+        
+    for index,tuplexy in enumerate(zip(x, y_list2)):
+        i_x=tuplexy[0]
+        i_y=tuplexy[1]
+        #print("{},{},{}".format(index,i_x, i_y))
+        label='{1:.7f}[{0}]'.format(index+1, i_y)
+        #plt.text(i_x, i_y,string )
+        plt.annotate(label, # this is the text
+                     (i_x,i_y), # this is the point to label
+                     textcoords="offset points", # how to position the text
+                     xytext=(0,-3*index-20), # distance from text to points (x,y)
+                     ha='center',color='green') # horizontal alignment can be left, right or center   
+    
+    for index,tuplexy in enumerate(zip(x, y_list3)):
+        i_x=tuplexy[0]
+        i_y=tuplexy[1]
+        #print("{},{},{}".format(index,i_x, i_y))
+        label='{1:.7f}[{0}]'.format(index+1, i_y)
+        #plt.text(i_x, i_y,string )
+        plt.annotate(label, # this is the text
+                     (i_x,i_y), # this is the point to label
+                     textcoords="offset points", # how to position the text
+                     xytext=(0,-3*index-60), # distance from text to points (x,y)
+                     ha='center',color='blue') # horizontal alignment can be left, right or center 
+    
+    plt.show()
 
 
 #

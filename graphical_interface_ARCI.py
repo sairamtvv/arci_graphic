@@ -5,11 +5,13 @@ from tkinter import messagebox,StringVar,ttk
 import time   #for time.sleep
 import sys
 import pathlib
-import os, sys, stat
+import os, stat
 import shutil
 
 import numpy as np
 import pandas as pd
+import openpyxl
+
 
 import socket
 from SCPI_socket import SCPI_sock_connect,SCPI_sock_send,SCPI_sock_close,getDataFromSocket
@@ -17,10 +19,24 @@ from matlabconversionprog import matlab_conver_func
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 
-import autoit
 
-autoit.opt("MouseCoordMode", 0)
-autoit.opt("SendKeyDelay", 10)
+
+import pywinauto
+from pywinauto.application import Application
+import sys
+from pywinauto.findwindows import WindowAmbiguousError, WindowNotFoundError
+from pywinauto.controls.common_controls import TabControlWrapper
+from pywinauto.keyboard import send_keys, KeySequenceError
+
+
+
+
+
+
+#import autoit
+
+#autoit.opt("MouseCoordMode", 0)
+#autoit.opt("SendKeyDelay", 10)
 
 """
 autoit.run("C:\Program Files (x86)\Lumenera Corporation\LuCam Capture Software\LuCam.exe")
@@ -41,6 +57,10 @@ autoit.control_click("[Class:#32770]", "Button2")
 """
 
 class Window():
+    
+    root_folder="D:/Automation_base/"
+    #Location where resources can be found
+    resourcelocation=root_folder+'resources/'
 
     def __init__(self,master):
 
@@ -50,16 +70,16 @@ class Window():
 
 
         #Standard Locations
-        self.baselocation='D:/'
+        #self.baselocation='D:/'
         #The default location from which the file shall be read from
-        self.defaultlocation=''
-        self.resourcelocation=self.baselocation+'resources/'
+        self.defaultlocation=Window.root_folder
+        #self.resourcelocation=self.baselocation+'resources/'
 
 
 
 
 
-        #AeroTech details i.e. Position Control
+
 
 
 
@@ -144,18 +164,14 @@ class Window():
         #Drop down list for the days
         self.combo = ttk.Combobox()
         self.combo.grid(row=1, column=3)
-        self.combo.config(value = ('L1', 'L2', 'L3', 'D4', 'D5'))
+        self.combo.config(value = ('L1', 'L2', 'L3', 'D4', 'D5','D6','set values'))
         self.combo.set('L3')
         #Label for combo box
 
 
-        """
-        # Button for updating all the values
-        self.buttonupdate = TK.Button(text='Update', command=self.update)
-        self.buttonupdate.grid(row=4, column=3)
-        self.labelupdate=TK.Label(text="Updating all the values", fg='red')
-        self.labelopenfile.grid(row=3, column=3)
-        """
+        
+        
+        
         #Button for Validation
         self.buttonvalidate = TK.Button(text='Validate', command=self.validate)
         self.buttonvalidate.grid(row=3, column=3)
@@ -165,9 +181,18 @@ class Window():
         #Button to specify the next run in how much time
 
 
+        # Button for Analysis
+        self.buttonanalysis = TK.Button(text='Analyse', command=self.analysis_alldays)
+        self.buttonanalysis.grid(row=6, column=3)
+        
 
-
-
+       #Drop down for internal or external files for Analysis 
+       #If internal the location is read from the previously run code
+       #else the location is read from the external 
+        self.analysiscombo = ttk.Combobox()
+        self.analysiscombo.grid(row=7, column=3)
+        self.analysiscombo.config(value = ('Internal', 'External'))
+        self.analysiscombo.set('Internal')
 
 
 
@@ -202,7 +227,8 @@ class Window():
         self.tempruns_D45_set=self.temprunsentry_D45.get()
         print("Number of temperature runs for Day4 and Day5 are {}".format(self.tempruns_D45_set))
         print("Validating the Path and existence of other files::")
-
+        self.analysiscombo_set=self.analysiscombo.get()
+        print("The type of analysis you want is ".format(self.analysiscombo_set))
 
 
 
@@ -217,10 +243,10 @@ class Window():
         #default path where the datalogger saves the file for each scan
         self.path_to_datalogger_default=pathlib.Path(self.dataloggerlocation)
 
-        #Location where resources can be found
-        self.resourcelocation=self.baselocation+'resources/'
+        
 
-
+        #Location where the Analysis is done
+        self.analysislocation=self.base_folder+'analysis_folder/'
 
         #raw text or output  raw_text.txt file location
         self.raw_text_path=pathlib.Path(self.base_folder+'raw_text_'+self.comboday_set+'.txt')
@@ -294,9 +320,9 @@ class Window():
         self.aerotech_url="192.168.1.16"
         #Install the latest Chrome
         path_to_chromedriver=pathlib.Path(self.resourcelocation+'chromedriver_win32/chromedriver.exe')
-        self.driver=wedriver.Chrome(path_to_chromedriver)
+        self.driver=webdriver.Chrome(path_to_chromedriver)
         print("Waiting for the AEROTECH URL....")
-        driver.get(self.aerotech_url)
+        self.driver.get(self.aerotech_url)
         time.sleep(10)
 
         #Checking if the two_balls areon the screen
@@ -312,12 +338,16 @@ class Window():
 
 
         #checking if Datalogger is active
-        var=autoit.win_wait_active("[TITLE:Configuration-2-BenchLink Data Logger3]", "",16)
-        if var==0:
-            print("The data logger is not on or at the right position")
-            self.master.destroy()
-            sys.exit(0)
-
+        app = Application(backend="win32").connect(title=u'Configuration - 2 - BenchLink Data Logger 3', class_name='WindowsForms10.Window.8.app.0.33c0d9d')
+        main_dlg = app[u'WindowsForms10.Window.8.app.0.33c0d9d']
+        main_dlg.wait('visible')
+        print("1")
+        time.sleep(1)
+        main_dlg.set_focus()
+        print("2")
+       
+        p=main_dlg.TabControl.select(u'Scan and Log Data')
+        #print(p.get_properties())
 
        #checking if dataloger default exists in the location specified.
        #The  file into which data is printed always
@@ -336,6 +366,7 @@ class Window():
             sys.exit(0)
         else:
             print(checkfilename)
+            return True
 
     def checkactivewindows(self,title):
         try:
@@ -363,18 +394,153 @@ class Window():
         self.output.insert(TK.END,self.defaultlocation)
 
     def analysis_russian(self):
+        
+        #list of all raw text files from all the days
+        lstrawtext=['raw_text_L1.txt','raw_text_L2.txt','raw_text_L3.txt']
+        #list of all the output files it needs to make
+        lst_treatg_input=[self.sensor_input_set+"_AS_L1",self.sensor_input_set+"_AS_L2",self.sensor_input_set+"_AS_L3"]
+        lst_channels101_to_106=["101 (VDC)","201 (VDC)","102 (VDC)","202 (VDC)","103 (VDC)","203 (VDC)","104 (VDC)","204 (VDC)","105 (VDC)","205 (VDC)","106 (VDC)","206 (VDC)","107 (VDC)","207 (VDC)","108 (VDC)","208 (VDC)"]
+        lst_channels108_to_116=["109 (VDC)","209 (VDC)","110 (VDC)","210 (VDC)","111 (VDC)","211 (VDC)","112 (VDC)","212 (VDC)","113 (VDC)","213 (VDC)","114 (VDC)","214 (VDC)","115 (VDC)","215 (VDC)","116 (VDC)","216 (VDC)"]
+        #list of all the channels
+        lstchannels=lst_channels101_to_106+lst_channels108_to_116
+        
+        print("Preparing files for the TreatG software.. This takes a minute...\n")
+        #knowing the number of channels from the column number of 201
+        #Based on that the number of channels can be infered
+        #Now only these many number of channel files shall be created 
         dfL1= pd.read_csv('raw_text_L1.txt')
-
-        if {'101 (VDC)','201 (VDC)'}.issubset(dfL1.columns):
-            with open('32_AS_L1', 'w') as f:
-                f.write(' pos  uacc     Rts\n')
-                for i in range(0,36):
-                    f.write('  {0} {1:.6f} {2:.5f}\n'.format(i%4+1,dfL1['101 (VDC)'].loc[i],dfL1['201 (VDC)'].loc[i]))
-
-
+        location201=dfL1.columns.get_loc("201 (VDC)")
+        channels=int((location201-2)/2)
+        #Writing heading to all the files L1, L2,L3 with all the channel numbers so that 
+        #nextpart can append these files.The files will be L1_1 L1_2 till L1_channelnumber L2_channelnumber
+        #L3_channelnumber
+        for inputtreatg in lst_treatg_input:
+            for channelnum in range(0,channels):
+                with open(inputtreatg+"_"+str(channelnum+1), 'w') as f:
+                    f.write(' pos  uacc     Rts\n')
+        #This is the main part of the program
+                    
+         
+        for rawtext_day,inputtreatg in zip(lstrawtext,lst_treatg_input):
+            dfL1= pd.read_csv(rawtext_day)
+            #This for loop chooses the 4 rows, then the interchange among them happens in the desired order
+            #order from 1423 to 1234
+            for chose4rowspanda in range(0,33,4):
+                dfL1temp=dfL1.loc[chose4rowspanda:chose4rowspanda+3,:]
+                b,c,d=dfL1temp.iloc[1,:].copy(),dfL1temp.iloc[2,:].copy(),dfL1temp.iloc[3,:].copy()
+                dfL1temp.iloc[1,:],dfL1temp.iloc[2,:],dfL1temp.iloc[3,:]=c,d,b
+                #for every channel selected, we have to assign the correct column names
+                #It is like selecting a matrix using rows and columns channel number  gets the column name from the list
+                for channelnum in range(0,channels):
+                    with open(inputtreatg+"_"+str(channelnum+1), 'a') as f:
+                        for rows in range(0,4):
+                            f.write('  {0} {1:.6f}  {2:.5f}\n'.format(rows,dfL1temp[lstchannels[2*channelnum]].iloc[rows],dfL1temp[lstchannels[2*channelnum+1]].iloc[rows]))
+        print("Finished Preparing files for treatg...\n")
+        
     def analysis_alldays(self):
         
-        matlab_conver_func()
+        #INTERNAL when the file location can be got from the runs
+        if self.analysiscombo.get() == "Internal":
+            dir_for_analy=self.analysislocation
+            sensorname=self.sensor_input_set
+            
+            
+            
+            
+            
+        else:
+            chosenfile=pathlib.Path(self.defaultlocation)
+            chosenfile=pathlib.Path(self.defaultlocation)
+                
+            dir_for_analy=chosenfile.parent
+            sensorname=input("Enter the sensor name:")
+       
+        
+        
+        
+        
+        
+        lstresult_files=['RESULT1.DAT','RESULT2.DAT','RESULT3.DAT']
+        lstfinalD45files=['finalD45_temp1.txt','finalD45_temp2.txt','finalD45_temp3.txt']        
+        lstD4temp_33files=['raw_text_D4_1_33.txt','raw_text_D4_2_33.txt','raw_text_D4_3_33.txt']
+        listof_filesrequired=lstresult_files+lstfinalD45files+lstD4temp_33files
+        #printing all the required file names 
+        for item in listof_filesrequired:
+            print(item) 
+            
+        decision=input ("If files with all these names are present in folder \n  press Y else add these files:")
+       
+        if decision.lower() != "y":
+            self.master.destroy()
+            sys.exit(0)
+          
+        #For checking if all the required files are present, if not the program exits
+        for item in listof_filesrequired:
+            self.checkfileexists(dir_for_analy.joinpath(item))
+        
+        
+            
+        lst_of_excelfiles=['(AS)_adj_param_m40.xlsx','(AS)_adj_param_p70.xlsx','(AS)_adj_param_p20.xlsx']
+        
+        
+        #g_sheet=srcfile.sheetnames
+        
+        #sheetname = srcfile.get_sheet_by_name('sheetsai')#get sheetname from the file
+        #sheetname['C4']= 55.568 #write something in B2 cell of the supplied sheet
+        
+        lst_ten_numbers=list(range(0,10))
+        
+        
+        #For all the files in the list writing 33 values in to the desired excel cells
+        for  excelfile, file33 in zip(lst_of_excelfiles,lstD4temp_33files):
+            for num in lst_ten_numbers:
+                
+                
+                df_temp_33=pd.read_csv(dir_for_analy.joinpath(file33),header=None)
+                
+                srcfile = openpyxl.load_workbook(dir_for_analy.joinpath(excelfile),read_only=False, keep_vba= True)#to open the excel sheet and if it has macros
+                sheetname=srcfile["sheetsai"]
+                sheetname.cell(row=item+4,column=3).value = df_temp_33.loc[item,0] #write to row 1,col 1 explicitly, this type of writing is useful to write something in loops
+            srcfile.save(dir_for_analy.joinpath(excelfile.split(".")[0]+"_modified"+".xlsm"))#save it as a new file, the original file is untouched and here I am saving it as xlsm(m here denotes macros).
+             
+        lst_of_xlsmfiles_modified=['(AS)_adj_param_m40_modified.xlsm','(AS)_adj_param_p70_modified.xlsm','(AS)_adj_param_p20_modified.xlsm']   
+        lstsix_numbers=list(range(0,6))
+        
+        #For all the files in the list writing D45 values in to the desired excel cells
+        for  xlsmfile,fileD45 in zip(lst_of_xlsmfiles_modified,lstD4temp_33files):
+            for rows in lstsix_numbers:
+                for columns in lstsix_numbers:
+                
+                    
+                    df_temp_45=pd.read_csv(dir_for_analy.joinpath(fileD45),header=None)
+                    
+                    srcfile = openpyxl.load_workbook(dir_for_analy.joinpath(xlsmfile),read_only=False, keep_vba= True)#to open the excel sheet and if it has macros
+                    sheetname=srcfile["sheetsai"]
+                    sheetname.cell(row=rows+19,column=columns+2).value = df_temp_45.loc[rows,columns] #write to row 1,col 1 explicitly, this type of writing is useful to write something in loops
+            srcfile.save(dir_for_analy.joinpath(sensorname+xlsmfile))
+            
+        #Now that the desired excel files are written deleting the extra unnecessary files 
+        
+        for file1,file2 in zip(lst_of_excelfiles,lst_of_xlsmfiles_modified):
+                file_to_rem = dir_for_analy.joinpath(file1)
+                file_to_rem.unlink()
+                file_to_rem = dir_for_analy.joinpath(file2)
+                file_to_rem.unlink()
+        
+        #Makng the desired array as the input for matlab conversion program
+        df_for_matlab=df_temp_33=pd.read_csv(dir_for_analy.joinpath("raw_text_D4_1_33.txt"),header=None)
+        desired_matrix=df_for_matlab.iloc[:,0:2].values
+        
+        
+        #Calling the matlab conversion program
+        matlab_conver_func(desired_matrix,dir_for_analy,sensorname)
+        
+        
+        
+        
+        
+        
+        
         
 
 
@@ -507,20 +673,24 @@ class Window():
         dfD5_temp1_pos6= pd.read_csv('raw_text_D5_1_6.txt')
 
         df_finalD45_temp1=pd.concat([dfD4summary_temp1,dfD5_temp1_pos5,dfD5_temp1_pos6],axis=1)
+        df_finalD45_temp1.to_csv('finalD45_temp1.txt',index=False)
+
 
         dfD4summary_temp2=pd.read_csv('D4summary_temp2.txt')
         dfD5_temp2_pos5= pd.read_csv('raw_text_D5_2_5.txt')
         dfD5_temp2_pos6= pd.read_csv('raw_text_D5_2_6.txt')
 
         df_finalD45_temp2=pd.concat([dfD4summary_temp2,dfD5_temp2_pos5,dfD5_temp2_pos6],axis=1)
-
+        df_finalD45_temp2.to_csv('finalD45_temp2.txt',index=False)
 
         dfD4summary_temp3=pd.read_csv('D4summary_temp3.txt')
         dfD5_temp3_pos5= pd.read_csv('raw_text_D5_3_5.txt')
         dfD5_temp3_pos6= pd.read_csv('raw_text_D5_3_6.txt')
 
         df_finalD45_temp3=pd.concat([dfD4summary_temp3,dfD5_temp3_pos5,dfD5_temp3_pos6],axis=1)
-
+        df_finalD45_temp3.to_csv('finalD45_temp3.txt',index=False)
+        
+        
         dfD4_temp1_pos33=pd.read_csv('raw_text_D4_1_33.txt')
         dfD4_temp2_pos33=pd.read_csv('raw_text_D4_2_33.txt')
         dfD4_temp3_pos33=pd.read_csv('raw_text_D4_3_33.txt')
@@ -610,13 +780,13 @@ class Window():
             for cycle in range(1,7):
             # when ever  cycle is zero it is going to create a new file in autoitdatalogger45
 
-            positionnumber =1
-            self.desired_aerotech_pos(positionnumber)
-            self.autoitdataloggerD45(self,tempiter,positionnumber,cycle)
+                positionnumber =1
+                self.desired_aerotech_pos(positionnumber)
+                self.autoitdataloggerD45(self,tempiter,positionnumber,cycle)
 
-            positionnumber =2
-            self.desired_aerotech_pos(positionnumber)
-            self.autoitdataloggerD45(self,tempiter,positionnumber,cycle)
+                positionnumber =2
+                self.desired_aerotech_pos(positionnumber)
+                self.autoitdataloggerD45(self,tempiter,positionnumber,cycle)
 
 
 
@@ -769,7 +939,7 @@ class Window():
             time.sleep(0.5)
 
         #clearing the immediate-command text for next command and then Absolute command
-        imme_comm=driver.find_element_by_id("immediate-command-text")
+        imme_comm=self.driver.find_element_by_id("immediate-command-text")
         time.sleep(0.5)
         imme_comm.clear()
         imme_comm.send_keys("ABSOLUTE")
@@ -796,36 +966,122 @@ class Window():
 
         print('Removed all files from datalogger default..starting acquisition')
 
-        #click the two dots so that it opens the dialogue box
-        #wait for 16 seconds to make the Benchlink Data logeer 3 active
-        autoit.win_wait_active("[TITLE:Configuration-2-BenchLink Data Logger3]", "",16)
-        #XXXXXXXXXXXXXXXXXXX
-        autoit.control_click("[TITLE:Configuration-2-BenchLink Data Logger3]","", "[CLASS::WindowsForms10.BUTTON.app.0.33c0d9d; INSTANCE:15]")
-        time.sleep(self.general_time_delay)
-
-        #Click on the check box
-        autoit.win_wait_active("[TITLE:Set Data Log Fields]", "",16)
-        autoit.control_click("[TITLE:Set Data Log Fields]","", "[CLASS::WindowsForms10.BUTTON.app.0.33c0d9d; INSTANCE:3]")
-        time.sleep(self.general_time_delay)
-
-
-        #Click on the ok box
-
-
-
-
-        #Click on the play button
-        autoit.win_wait_active("[TITLE:Configuration-2-BenchLink Data Logger3]", "",16)
-
-        #wait for the scan and log data summary
-        #wait for 2 minutes maximum
-        autoit.win_wait_active("[TITLE:Scan and Log Data Summary]", "",150)
-        autoit.control_click("[TITLE:Scan and Log Data Summary]","", "[CLASS::WindowsForms10.BUTTON.app.0.33c0d9d; INSTANCE:5]")
-        time.sleep(self.general_time_delay)
-
-
-        #Click on the close button
-        #end of the cycle
+        
+        try:
+            app = Application(backend="win32").connect(title=u'Configuration - 2 - BenchLink Data Logger 3', class_name='WindowsForms10.Window.8.app.0.33c0d9d')
+            main_dlg = app[u'WindowsForms10.Window.8.app.0.33c0d9d']
+            main_dlg.wait('visible')
+            print("1")
+            time.sleep(1)
+            main_dlg.set_focus()
+            print("2")
+           
+            p=main_dlg.TabControl.select(u'Scan and Log Data')
+            #print(p.get_properties())
+           
+            p.client_rects()
+           
+            scanlog_dlg=main_dlg[u'WindowsForms10.Window.8.app.0.33c0d9d7']
+            #scanlog_dlg.child_window(auto_id="m_gridInst", control_type="C1.Win.C1FlexGrid.C1FlexGrid").print_control_identifiers()
+            scanlog_dlg.draw_outline()
+            scanlog_dlg.click()
+            time.sleep(0.5)
+           
+           
+           
+            send_keys('^{RIGHT}{DOWN}{LEFT}{LEFT}{ENTER}')
+           
+           
+            app2 = Application().Connect(title=u'Set Data Log Fields', class_name='WindowsForms10.Window.8.app.0.33c0d9d')
+            setdatalogfield_dlg = app2[u'WindowsForms10.Window.8.app.0.33c0d9d']
+            print("11")
+            setdatalogfield_dlg.wait('visible')
+            print("22")
+           
+            checkboxbutton_notrequired = setdatalogfield_dlg.Button2
+            checkboxbutton_notrequired.click()
+           
+            okbutton=setdatalogfield_dlg.OK
+            okbutton.click()
+           
+           
+            main_dlg.set_focus()
+            print("2")
+            send_keys('{RIGHT}{ENTER}')
+           
+        except(WindowNotFoundError):
+            print ('window not found')
+            pass
+        except(WindowAmbiguousError):
+            print ('There are too many  windows found')
+            pass  
+               
+           
+           
+           
+           
+           
+           
+           
+           
+           
+           
+           
+           
+           
+           
+           
+           
+           
+        #    send_keys("{VK_CONTROL down}"
+        #          "{VK_RIGHT down}"
+        #          "{VK_RIGHT up}"
+        #          "{VK_CONTROL up}"
+        #          "{VK_LEFT down}"
+        #          "{VK_LEFT up}"
+        #          "{VK_LEFT down}"
+        #          "{VK_LEFT up}"
+        #          "{ENTER}"
+        #                             ) # to type PYWINAUTO
+        
+            #scanlog_dlg.print_control_identifiers()
+            #app.WindowsForms10.Window.8.app.0.33c0d9d7.print_control_identifiers()
+           
+            #child_window(title="Scan and Log Data", auto_id="m_tpageScanLog", control_type="System.Windows.Forms.TabPage")
+           
+            #sys.stdout = open("scanandlog.txt","w")
+            #scanlog_dlg.print_control_identifiers()
+            #main_dlg.TabControl.Scan and Log Data.print_control_identifiers()  
+            #app.Properties.child_window(title="Contains:", auto_id="13087", control_type="Edit")
+            #main_dlg.TabControl.TabPage
+           
+        #    ctrl = app['WindowsForms10.Window.8.app.0.33c0d9d7']
+        #    ctrl.Click()
+        
+           
+        #    time.sleep(1)
+        #    windowsformsbuttonappcdd = windowsformswindowappcdd.Button4
+        #    time.sleep(1)
+        #    windowsformsbuttonappcdd.click()
+        #    time.sleep(1)
+        #
+        #
+        #    app_dialog = app.top_window()
+        #    time.sleep(1)
+        #    app_dialog.set_focus()
+        #    time.sleep(1)
+        #    windowsformsbuttonappcdd = windowsformswindowappcdd.Cancel
+        #    windowsformsbuttonappcdd.click()
+        #    
+        #    time.sleep(1)
+        #    
+        #    windowsformsbuttonappcdd2 = windowsformswindowappcdd.Button5
+        #    windowsformsbuttonappcdd2.SetFocus()
+        #    windowsformsbuttonappcdd2.select()
+        
+   
+            #Click on the close button
+            #end of the cycle
 
 
 
